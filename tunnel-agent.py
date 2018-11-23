@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
- MQTT client/monitor for Machinon2 reverse ssh tunnel
+ Tunnel Agent v1.1 for Machinon2
 
  (c) Logic Energy 2018
  MGC 2018-07-27
  JJG 2018-11-22
 
- Monitors MQTT topics for a command to open a SSH tunnel to server.
+ Monitors MQTT topics for a command to open a SSH tunnel to Remachinon server.
 
  Uses Paho-MQTT library
 
  Expects an MQTT message with JSON payload in the form:
-    {"tunnel":"open", "port":"50000", "device_id":"359"}
+    {"tunnel":"open", "port":"50000", "tunnel_uuid":"12345678-1234-4000-8234-1234567890AB"}
     or
     {"tunnel":"close"}
+
+    2018-11-22 Receiving "device_id" in the JSON is now deprecated, server sends "tunnel_uuid" UUID4 instead
 
 """
 
@@ -42,6 +44,7 @@ import struct
 import binascii
 import json
 import subprocess
+import re
 
 # SSL Certs definitions
 CA_CERT_PATH = ""
@@ -60,8 +63,8 @@ MQTT_CLIENT_ID_PREFIX = os.getenv('MQTT_CLIENT_ID_PREFIX')
 MQTT_TOPIC_PREFIX_REMOTECONNECT = os.getenv('MQTT_TOPIC_PREFIX_REMOTECONNECT')
 
 # Misc general definitions
-PROG_NAME = "Machinon Tunnel Client"
-PROG_VERSION = "1.0.0"    # program version as string
+PROG_NAME = "Machinon Tunnel Agent"
+PROG_VERSION = "1.1.0"    # program version as string
 
 LOG_FILE = os.getenv('LOG_FILE')   # script user must have write access to this file or folder
 LOG_FILE_MAX_SIZE = 10 * 1024 * 1024
@@ -79,7 +82,13 @@ DEFAULT_LOCAL_PORT = 80
 MIN_LOCAL_PORT = 80
 MAX_LOCAL_PORT = 65535
 
-TUNNEL_CONFIRM_URL_BASE = "http://dev.logicenergy.com/manager/api/v1/machinon/confirm_tunnel/"
+TUNNEL_CONFIRM_URL_BASE = os.getenv('TUNNEL_CONFIRM_URL_BASE')
+
+# Validates uuid received in the JSON
+def valid_uuid(uuid):
+    regex = re.compile('^[a-f0-9]{8}-?[a-f0-9]{4}-?4[a-f0-9]{3}-?[89ab][a-f0-9]{3}-?[a-f0-9]{12}\Z', re.I)
+    match = regex.match(uuid)
+    return bool(match)
 
 # Get MAC address for specified network interface
 # Python3 version from https://stackoverflow.com/questions/28927958/python-get-mac-address/34922412#34922412
@@ -107,7 +116,7 @@ def on_message(client, userdata, message):
     global tunnel_do_open
     global tunnel_do_close
     global remote_port_num
-    global device_id
+    global tunnel_uuid
 
     message_string = message.payload.decode("utf-8")
     logger.debug("MQTT_msg: Topic='" + message.topic + "'   Payload='" + message_string + "'")
@@ -131,22 +140,21 @@ def on_message(client, userdata, message):
                     logger.info("MQTT JSON: Bad port value")
                 else:
                     if remote_port_num >= MIN_REMOTE_PORT and remote_port_num <= MAX_REMOTE_PORT:
-                        # check device_id
-                        device_id = 0
-                        if "device_id" in messasge_dict:
+                        tunnel_uuid = ""
+                        if "tunnel_uuid" in messasge_dict:
                             try:
-                                device_id = int(messasge_dict["device_id"])
+                                tunnel_uuid = str(messasge_dict["tunnel_uuid"])
                             except:
-                                logger.info("MQTT JSON: Bad device_id value")
+                                logger.info("MQTT JSON: Bad tunnel_uuid value")
                             else:
-                                if device_id > 0 and device_id <= 1000000:
-                                    logger.info("MQTT got tunnel open command with port=" + str(remote_port_num) + " device_id=" + str(device_id))
+                                if valid_uuid(tunnel_uuid):
+                                    logger.info("MQTT got tunnel open command with port=" + str(remote_port_num) + " tunnel_uuid=" + str(tunnel_uuid))
                                     # trigger r-ssh open
                                     tunnel_do_open = True
                                 else:
-                                    logger.info("MQTT JSON: Bad device_id value")
+                                    logger.info("MQTT JSON: Bad tunnel_uuid value")
                         else:
-                            logger.info("MQTT JSON: device_id not specified. Confirmation will be skipped.")
+                            logger.info("MQTT JSON: tunnel_uuid not specified. Confirmation will be skipped.")
                             # trigger r-ssh open
                             tunnel_do_open = True
                     else:
@@ -175,7 +183,7 @@ def on_subscribe(client, userdata, mid, granted_qos):
 
 
 def cleanup():
-    logger.info("Machinon Tunnel Client exit")
+    logger.info("Machinon Tunnel Agent exit")
     # disconnect cleanly in case we're still connected
     paho_client.disconnect()
     time.sleep(0.5)  # kludge to allow time for disconnect to be sent and callback triggered
@@ -199,7 +207,7 @@ def main(argv):
     global tunnel_do_open
     global tunnel_do_close
     global remote_port_num
-    global device_id
+    global tunnel_uuid
     global local_port_num
     
     #ssh_process = None
@@ -279,9 +287,9 @@ def main(argv):
                 logger.info("Tunnel open failed: " + str(e))
             else:
                 # tunnel opened, so call LE API to confirm that we are online
-                # API URL is: "http://dev.logicenergy.com/manager/api/v1/machinon/confirm_tunnel/359" where 359 is device_id
-                if device_id > 0:
-                    req = urllib.request.Request(TUNNEL_CONFIRM_URL_BASE + '/machinon/confirm_tunnel/' + str(device_id))
+                if valid_uuid(tunnel_uuid):
+                    # This line calls the new Remachinon App (Laravel) confirmation endpoint
+                    req = urllib.request.Request(TUNNEL_CONFIRM_URL_BASE + '/tunnels/' + str(tunnel_uuid) + '/confirm')
                     try:
                         response = urllib.request.urlopen(req)
                         #response_page = response.read()
@@ -339,7 +347,7 @@ tunnel_do_open = False
 tunnel_do_close = False
 remote_port_num = 0
 local_port_num = DEFAULT_LOCAL_PORT
-device_id = 0
+tunnel_uuid = ""
 
 # Global objects for the MQTT client
 paho_client = None
