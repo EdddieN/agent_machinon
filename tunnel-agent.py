@@ -62,11 +62,9 @@ PROG_VERSION = "1.1.0"  # program version as string
 LOG_FILE = os.getenv('LOG_FILE')  # script user must have write access to this file or folder
 LOG_FILE_MAX_SIZE = 10 * 1024 * 1024
 
+# SSH and SSL definitions
+SSH_USERNAME = os.getenv('SSH_USERNAME') + '@' + os.getenv('SSH_HOSTNAME')
 SSH_KEY_FILE = os.getenv('SSH_KEY_FILE')
-SSH_USERNAME = os.getenv('SSH_USERNAME')
-
-# SSL Certs definitions
-CA_CERT_PATH = os.getenv('CA_CERT_PATH')
 
 # Remote ports the autossh will connect to on demand
 MIN_REMOTE_PORT = 10000
@@ -79,7 +77,8 @@ DEFAULT_LOCAL_PORT = 80
 MIN_LOCAL_PORT = 80
 MAX_LOCAL_PORT = 65535
 
-TUNNEL_CONFIRM_URL_BASE = os.getenv('TUNNEL_CONFIRM_URL_BASE')
+# Re:Machinon API URL
+REMACHINON_API_URL = os.getenv('REMACHINON_API_URL')
 
 
 # Validates uuid received in the JSON
@@ -305,7 +304,7 @@ def main(argv):
                         'X-Requested-With': 'XMLHttpRequest',
                     }
                     # This line calls the new Remachinon App (Laravel) confirmation endpoint
-                    confirm_url = TUNNEL_CONFIRM_URL_BASE + '/tunnels/' + str(tunnel_uuid) + '/confirm'
+                    confirm_url = REMACHINON_API_URL + '/tunnels/' + str(tunnel_uuid) + '/confirm'
                     logger.debug('Calling : ' + confirm_url)
                     req = urllib.request.Request(confirm_url, None, headers, method='PUT')
                     try:
