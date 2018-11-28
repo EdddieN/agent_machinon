@@ -1,3 +1,5 @@
 /.idea
 .env
+.env.production
 README.txt
+*.log
