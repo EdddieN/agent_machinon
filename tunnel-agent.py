@@ -9,14 +9,8 @@
 
  Monitors MQTT topics for a command to open a SSH tunnel to Remachinon server.
 
- Uses Paho-MQTT library
-
- Expects an MQTT message with JSON payload in the form:
-    {"tunnel":"open", "port":"50000", "tunnel_uuid":"12345678-1234-4000-8234-1234567890AB"}
-    or
-    {"tunnel":"close"}
-
-    2018-11-22 Receiving "device_id" in the JSON is now deprecated, server sends "tunnel_uuid" UUID4 instead
+ Uses python_dotenv library (not the same as dotenv library)
+ Uses paho_mqtt library
 
 """
 
@@ -24,7 +18,6 @@ import os
 import sys  # for argv
 import argparse  # easy argv parsing
 import socket
-import paho.mqtt.client as pahomqtt
 import time
 import logging.handlers
 import atexit  # for pre-exit cleanup
@@ -37,8 +30,9 @@ import json
 import subprocess
 import re
 
-# Loading the .env configuration variables
-from dotenv import load_dotenv
+# External libraries, pip installed
+import paho.mqtt.client as pahomqtt # MQTT library
+from dotenv import load_dotenv # Reads config variables from .env files
 
 load_dotenv()
 
