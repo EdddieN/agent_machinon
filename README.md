@@ -1,6 +1,6 @@
 
 
-# Installing Agent-Machinon on your Raspbian
+# Installing Agent-Machinon on your Raspbian - client daemon
 
 ### This project is work in progress
 
