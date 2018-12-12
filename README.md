@@ -1,6 +1,6 @@
 
 
-# Installing Agent-Machinon on your Raspbian - client daemon
+# Installing Agent-Machinon on your Raspbian
 
 ### This project is work in progress
 
@@ -8,10 +8,31 @@
 
 This Python app will run in background on your Raspberry Pi and will listen the Re:Machinon portal's remote link commands.
 
-This guide uses apt as package manager, it may use yum so, keep that in mind and change the package command lines accordingly. 
+## Requirements
+
+* Raspberry Pi 3 Model B+
+* Linux OS (Raspbian recommended)
+
+- Python 3.5+ with the following libraries:
+	- paho-mqtt (https://pypi.org/project/paho-mqtt/)
+	- python-dotenv (https://github.com/theskumar/python-dotenv)
+- Autossh
+- Git
+
+***This app is designed for Linux OS only.***
+
+### Regarding the packet manager
+
+This guide suggests to install the software on a fresh installation of **Raspbian**, therefore we'll use *apt* as packet manager. 
+
+In case you have an already working Raspbian or another Linux OS distribution installed you may find some packages are already installed.
+Also you may have to use a different packet manager, as *yum*, *rpm*, etc... 
+
+Keep that in mind and modify the package install command lines accordingly to your OS's packet manager.
 
 Whenever apt asks for confirmation, just answer Yes.
 
+## Updating your system
 
 First ensure the apt repository is up to date:
 ```
@@ -197,5 +218,5 @@ https://github.com/EdddieN/web_machinon
 
 > Written with [StackEdit](https://stackedit.io/).
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbNjM3MTAwMjY3XX0=
+eyJoaXN0b3J5IjpbMTE0NDQ0MjcxOCw2MzcxMDAyNjddfQ==
 -->
