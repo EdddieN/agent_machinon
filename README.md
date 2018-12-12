@@ -69,7 +69,7 @@ sudo apt-get install autossh
 sudo apt-get install git
 ```
 
-## Checkout the current agent_machinon app from GitHub
+## Download the current agent_machinon app from GitHub
 
 As the repository is private, you'll be asked for your GitHub user and password, that's okay.
 
@@ -218,5 +218,6 @@ https://github.com/EdddieN/web_machinon
 
 > Written with [StackEdit](https://stackedit.io/).
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTE0NDQ0MjcxOCw2MzcxMDAyNjddfQ==
+eyJoaXN0b3J5IjpbOTA2NTA2MjA0LDExNDQ0NDI3MTgsNjM3MT
+AwMjY3XX0=
 -->
