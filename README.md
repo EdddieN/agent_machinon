@@ -215,9 +215,13 @@ The next step would be installing web_machinon in your Raspberry, that will crea
 
 https://github.com/EdddieN/web_machinon
 
+After that, visit Re:Machinon portal, join up, register your device and you're ready to go!
+
+http://re.machinon.com
+
 
 > Written with [StackEdit](https://stackedit.io/).
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbOTA2NTA2MjA0LDExNDQ0NDI3MTgsNjM3MT
-AwMjY3XX0=
+eyJoaXN0b3J5IjpbLTIwNjQwNzg4NzMsOTA2NTA2MjA0LDExND
+Q0NDI3MTgsNjM3MTAwMjY3XX0=
 -->
