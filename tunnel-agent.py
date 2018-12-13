@@ -219,7 +219,7 @@ def main(argv):
 
     atexit.register(cleanup)
 
-    mac_address = 'B827EB8B4A89'  # get_mac_address('eth0')
+    mac_address = get_mac_address('eth0')
     client_id = MQTT_CLIENT_ID_PREFIX + mac_address
     logger.info(PROG_NAME + " version " + PROG_VERSION + " started. MQTT ClientID = " + client_id)
     logger.info("Machinon MAC: " + mac_address)
