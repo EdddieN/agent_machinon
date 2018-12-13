@@ -249,7 +249,7 @@ def main(argv):
     logger.info(PROG_NAME + " version " + PROG_VERSION + " started. MQTT ClientID = " + client_id)
     logger.info("Machinon MAC: " + mac_address)
     logger.info("Local server port: " + str(local_port_num))
-    sys.exit(0)
+    # sys.exit(0)
 
     paho_client = pahomqtt.Client(client_id, True, None, pahomqtt.MQTTv311, "tcp")
     paho_client.on_connect = on_connect
