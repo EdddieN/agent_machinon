@@ -82,15 +82,37 @@ def valid_uuid(uuid):
     return bool(match)
 
 
+# Debian Stretch changed the way to name ethernet interfaces
+# https://www.raspberrypi-spy.co.uk/2012/06/finding-the-mac-address-of-a-raspberry-pi/
+def get_ethernet_name():
+    interface = ""
+    try:
+       for root,dirs,files in os.walk('/sys/class/net'):
+         for dir in dirs:
+             if dir[:3]=='enx' or dir[:3]=='eth':
+                 interface = dir
+    except:
+        interface = False
+    return interface
+
+
 # Get MAC address for specified network interface
 # Python3 version from https://stackoverflow.com/questions/28927958/python-get-mac-address/34922412#34922412
-def get_mac_address(ifname):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    info = fcntl.ioctl(s.fileno(), 0x8927, struct.pack('256s', bytes(ifname[:15], 'utf-8')))
-    # Classic colon-delimited MAC
-    # return ''.join(l + ':' * (n % 2 == 1) for n, l in enumerate(binascii.hexlify(info[18:24]).decode('utf-8')))[:-1]
-    # 12-digit hex only
-    return ''.join(binascii.hexlify(info[18:24]).decode('utf-8')).upper()
+def get_mac_address():
+    ifname = get_ethernet_name()
+    # if we don't found ethernet in sys, try the default name
+    if not ifname:
+        ifname = 'eth0'
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        info = fcntl.ioctl(s.fileno(), 0x8927, struct.pack('256s', bytes(ifname[:15], 'utf-8')))
+        # Classic colon-delimited MAC
+        # str = ''.join(l + ':' * (n % 2 == 1) for n, l in enumerate(binascii.hexlify(info[18:24]).decode('utf-8')))[:-1]
+        # 12-digit hex only
+        return ''.join(binascii.hexlify(info[18:24]).decode('utf-8')).upper()
+    except:
+        # str = "00:00:00:00:00:00" change return to str[0:17]
+        return False
 
 
 def on_connect(client, userdata, flags, result):
@@ -219,12 +241,15 @@ def main(argv):
 
     atexit.register(cleanup)
 
-    mac_address = get_mac_address('eth0')
+    mac_address = get_mac_address()
+    if not mac_address:
+        logger.error("Fatal Error : Unable to read network interface mac adress. Exiting")
+        sys.exit(0)
     client_id = MQTT_CLIENT_ID_PREFIX + mac_address
     logger.info(PROG_NAME + " version " + PROG_VERSION + " started. MQTT ClientID = " + client_id)
     logger.info("Machinon MAC: " + mac_address)
     logger.info("Local server port: " + str(local_port_num))
-    # sys.exit(0)
+    sys.exit(0)
 
     paho_client = pahomqtt.Client(client_id, True, None, pahomqtt.MQTTv311, "tcp")
     paho_client.on_connect = on_connect
