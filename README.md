@@ -69,7 +69,7 @@ sudo apt-get install autossh
 sudo apt-get install git
 ```
 
-## Checkout the current agent_machinon app from GitHub
+## Download the current agent_machinon app from GitHub
 
 As the repository is private, you'll be asked for your GitHub user and password, that's okay.
 
@@ -215,8 +215,13 @@ The next step would be installing web_machinon in your Raspberry, that will crea
 
 https://github.com/EdddieN/web_machinon
 
+After that, visit Re:Machinon portal, join up, register your device and you're ready to go!
+
+http://re.machinon.com
+
 
 > Written with [StackEdit](https://stackedit.io/).
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbMTE0NDQ0MjcxOCw2MzcxMDAyNjddfQ==
+eyJoaXN0b3J5IjpbLTIwNjQwNzg4NzMsOTA2NTA2MjA0LDExND
+Q0NDI3MTgsNjM3MTAwMjY3XX0=
 -->
