@@ -206,7 +206,7 @@ This command will continuously show the log contents until Ctrl+C is pressed:
 
 ```
 cd /opt/agent_machinon
-tail -f tunnel-agent.py
+tail -f tunnel-agent.log
 ```
 
 ## Now what?
