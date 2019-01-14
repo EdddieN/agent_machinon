@@ -64,11 +64,11 @@ SSH_KEY_FILE = os.getenv('SSH_KEY_FILE')
 MIN_REMOTE_PORT = 10000
 MAX_REMOTE_PORT = 65535
 
-# Port where the local nginx/apache serves the remachinon_web app
-DEFAULT_LOCAL_PORT = 80
+# Port for nginx listening the machinon_client app (default 81)
+DEFAULT_LOCAL_PORT = os.getenv('MACHINON_CLIENT_PORT')
 
-# Program allows to run with a custom port between 80 and 65535
-MIN_LOCAL_PORT = 80
+# Program allows to run with a custom port between 81 and 65535
+MIN_LOCAL_PORT = 81
 MAX_LOCAL_PORT = 65535
 
 # Re:Machinon API URL

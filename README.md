@@ -1,6 +1,7 @@
-
-
 # Installing Agent-Machinon on your Raspbian
+
+### Outdate notice
+***IMPORTANT : This document may be outdated, please check "Installing Machinon - The complete guide" for the latest setup instructions.***
 
 ### This project is work in progress
 
@@ -74,10 +75,11 @@ sudo apt-get install git
 As the repository is private, you'll be asked for your GitHub user and password, that's okay.
 
 ```
-cd /opt
-sudo git clone https://github.com/EdddieN/agent_machinon.git
-sudo chown pi:pi -R agent_machinon
-cd agent_machinon
+sudo mkdir -p /opt/machinon
+cd /opt/machinon
+sudo git clone https://github.com/EdddieN/agent_machinon.git agent
+sudo chown pi:pi -R /opt/machinon
+cd agent
 ```
 
 ## Installing SSH Re:Machinon server  key and signature
@@ -85,17 +87,16 @@ cd agent_machinon
 
 A public key is needed to let the app open the link with the  Re:Machinon server.
 
-***WIP*** Ed, all this will be downloaded / installed internally or generated in the Pi and installed on the server somehow when automating the installation, at the moment I'll send the key to you by email. Until we have this installed in a safer server this is on hold.
-
 #### Copy the contents of the key I've sent you in this file and set the  right permissions
 
 ```
-sudo nano /etc/ssh/remachinon_test_aws.pem 
-sudo chmod 400 /etc/ssh/remachinon_test_aws.pem
+sudo nano /etc/ssh/remachinon_rsa_key.pem 
+sudo chmod 400 /etc/ssh/remachinon_rsa_key.pem
 ```
 #### Preload the Re:Machinon server key in the known_hosts file
 
 ```
+sudo ssh-keygen -R re.machinon.com 
 ssh-keyscan re.machinon.com | sudo tee -a /etc/ssh/ssh_known_hosts
 ```
 
@@ -115,26 +116,29 @@ Put on it the following contents, save and exit:
 
 ```
 # MQTT Broker definitions  
-MQTT_SERVER_HOST=dev.machinon.com  
+MQTT_SERVER_HOST=re.machinon.com  
 MQTT_SERVER_PORT=1883  
 MQTT_SERVER_PORT_SSL=8883  
 MQTT_SERVER_USE_SSL=True  
-MQTT_SERVER_USERNAME=machinon  
+MQTT_SERVER_USERNAME=remachinon  
 MQTT_SERVER_PASSWORD=<sent by email>  
 MQTT_CERTS_PATH=/etc/ssl/certs  
   
 # MQTT client and topic definitions  
-MQTT_CLIENT_ID_PREFIX=machinon2_  
+MQTT_CLIENT_ID_PREFIX=agent_machinon:  
 MQTT_TOPIC_PREFIX_REMOTECONNECT=remote  
   
 # SSH Tunnel details  
 SSH_HOSTNAME=re.machinon.com  
-SSH_USERNAME=ec2-user
-SSH_KEY_FILE=/etc/ssh/remachinon_test_aws.pem  
+SSH_USERNAME=remachinon
+SSH_KEY_FILE=/etc/ssh/remachinon_rsa_key.pem  
   
 # Remachinon API base URL  
-REMACHINON_API_URL=http://${SSH_HOSTNAME}/api/v1  
-  
+REMACHINON_API_URL=https://${SSH_HOSTNAME}/api/v1  
+
+# Nginx port listening machinon_client web app (default 81)
+MACHINON_CLIENT_PORT=81
+
 # script user must have write access to this file or folder  
 LOG_FILE=tunnel-agent.log
 ```
@@ -155,8 +159,8 @@ Write in the service file que following code, save and exit
 [Service]  
        User=pi  
        Group=users  
-       ExecStart=/usr/bin/python3 /opt/agent_machinon/tunnel-agent.py
-       WorkingDirectory=/opt/agent_machinon/ 
+       ExecStart=/usr/bin/python3 /opt/machinon/agent/tunnel-agent.py
+       WorkingDirectory=/opt/machinon/agent/
        Restart=always  
        RestartSec=20  
        #StandardOutput=null  
@@ -177,6 +181,7 @@ sudo systemctl start agent_machinon.service
 Let's identify your Raspberry MUID (the ethernet MAC address in use), which you'll need to register the device in Re:Machinon. 
 
 ```
+cd /opt/machinon/agent
 cat tunnel-agent.log | grep "remote"
 ```
 
@@ -193,7 +198,7 @@ If the tunnel-agent.log does not exist please re-check all the previous steps, a
 In case something goes wrong, you can always run agent_machinon directly from command line:
 
 ```
-cd /opt/agent_machinon
+cd /opt/machinon/agent
 env python3 tunnel-agent.py
 ```
 
@@ -205,7 +210,7 @@ You can also check Agent Machinon while the service is running by watching the l
 This command will continuously show the log contents until Ctrl+C is pressed:
 
 ```
-cd /opt/agent_machinon
+cd /opt/machinon/agent
 tail -f tunnel-agent.log
 ```
 
