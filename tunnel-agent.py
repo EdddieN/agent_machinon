@@ -65,7 +65,7 @@ MIN_REMOTE_PORT = 10000
 MAX_REMOTE_PORT = 65535
 
 # Port for nginx listening the machinon_client app (default 81)
-DEFAULT_LOCAL_PORT = os.getenv('MACHINON_CLIENT_PORT')
+DEFAULT_LOCAL_PORT = int(os.getenv('MACHINON_CLIENT_PORT'))
 
 # Program allows to run with a custom port between 81 and 65535
 MIN_LOCAL_PORT = 81
