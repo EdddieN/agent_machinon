@@ -1,0 +1,28 @@
+##  (2019-02-18)
+
+* Added MACHINON_CLIENT_PORT in the .env to set machinon_client's nginx server block port, which now i ([b41b363](https://github.com/EdddieN/agent_machinon/commit/b41b363))
+* Agent now receives tunnel UUID4 instead of device_id. ([129c2bc](https://github.com/EdddieN/agent_machinon/commit/129c2bc))
+* Code cleanup ([81da624](https://github.com/EdddieN/agent_machinon/commit/81da624))
+* Create CHANGELOG ([14d4b25](https://github.com/EdddieN/agent_machinon/commit/14d4b25))
+* Create LICENSE ([e9e05af](https://github.com/EdddieN/agent_machinon/commit/e9e05af))
+* First revision ([7253984](https://github.com/EdddieN/agent_machinon/commit/7253984))
+* Fixed bug in new DEFAULT_LOCAL_PORT, recasted as int. ([05591d8](https://github.com/EdddieN/agent_machinon/commit/05591d8))
+* Fixed issue with MQTT SSL flag on .env ([437de4b](https://github.com/EdddieN/agent_machinon/commit/437de4b))
+* Fixed problem reading ethernet address due to Debian Stretch ([e5ac81b](https://github.com/EdddieN/agent_machinon/commit/e5ac81b))
+* Fixed static mac_address reading ([daab57c](https://github.com/EdddieN/agent_machinon/commit/daab57c))
+* README.md updated from https://stackedit.io/ ([d2a3ccc](https://github.com/EdddieN/agent_machinon/commit/d2a3ccc))
+* README.md updated from https://stackedit.io/ ([c9e8326](https://github.com/EdddieN/agent_machinon/commit/c9e8326))
+* README.md updated from https://stackedit.io/ ([5eaa6ef](https://github.com/EdddieN/agent_machinon/commit/5eaa6ef))
+* README.md updated from https://stackedit.io/ ([3a5b88f](https://github.com/EdddieN/agent_machinon/commit/3a5b88f))
+* README.md.md created from https://stackedit.io/ ([a09b8f0](https://github.com/EdddieN/agent_machinon/commit/a09b8f0))
+* Ready to launch ([ad32bcd](https://github.com/EdddieN/agent_machinon/commit/ad32bcd))
+* Removed debug line ([956848c](https://github.com/EdddieN/agent_machinon/commit/956848c))
+* Sorting some .env variables ([0466d5a](https://github.com/EdddieN/agent_machinon/commit/0466d5a))
+* Update README.md ([4c5d89e](https://github.com/EdddieN/agent_machinon/commit/4c5d89e))
+* Update README.md ([56bebfb](https://github.com/EdddieN/agent_machinon/commit/56bebfb))
+* Update README.md ([b519d8a](https://github.com/EdddieN/agent_machinon/commit/b519d8a))
+* Update README.md ([4fa8eca](https://github.com/EdddieN/agent_machinon/commit/4fa8eca))
+* Update README.md ([0a0c9ca](https://github.com/EdddieN/agent_machinon/commit/0a0c9ca))
+
+
+
