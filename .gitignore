@@ -3,3 +3,5 @@
 !.env.example
 README.txt
 *.log
+*.key
+*.pem

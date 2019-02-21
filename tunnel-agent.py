@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
- Agent Machinon v1.1 for Machinon2
+ Agent Machinon
 
- (c) Logic Energy 2018
+ (c) Logic Energy 2018-present
  MGC 2018-07-27
  JJG 2018-11-22
 
- Monitors MQTT topics for a command to open a SSH tunnel to Remachinon server.
+ Monitors MQTT topics for a command to open a SSH tunnel from Machinon to Remachinon server.
 
  Uses python_dotenv library (not the same as dotenv library)
  Uses paho_mqtt library
@@ -29,50 +29,79 @@ import binascii
 import json
 import subprocess
 import re
-
-# External libraries, pip installed
 import paho.mqtt.client as pahomqtt # MQTT library
 from dotenv import load_dotenv # Reads config variables from .env files
 
 load_dotenv()
 
+# Misc general definitions
+PROG_NAME = "Agent Machinon"
+PROG_VERSION = "v0.3.0-beta"  # program version as string
+
+# Re:Machinon Service credentials
+REMACHINON_EMAIL = str(os.getenv('REMACHINON_EMAIL', None))
+REMACHINON_PASSWORD = str(os.getenv('REMACHINON_PASSWORD', None))
+
+# Re:Machinon Service details
+REMACHINON_HOST = os.getenv('REMACHINON_HOST', 're.machinon.com')
+REMACHINON_API_URL = os.getenv('REMACHINON_API_URL', 'https://re.machinon.com/api/v1')
+REMACHINON_PEM_KEY_PATH = os.getenv('REMACHINON_PEM_KEY_PATH', os.getcwd() + '/.server.key')
+
 # MQTT Broker definitions
-MQTT_SERVER_HOST = os.getenv('MQTT_SERVER_HOST')
-MQTT_SERVER_PORT = int(os.getenv('MQTT_SERVER_PORT'))
-MQTT_SERVER_PORT_SSL = int(os.getenv('MQTT_SERVER_PORT_SSL'))
-MQTT_SERVER_USE_SSL = bool(os.getenv('MQTT_SERVER_USE_SSL').lower() in ("yes", "true", "t", "1"))
-MQTT_SERVER_USERNAME = os.getenv('MQTT_SERVER_USERNAME')
-MQTT_SERVER_PASSWORD = os.getenv('MQTT_SERVER_PASSWORD')
-MQTT_CERTS_PATH = os.getenv('MQTT_CERTS_PATH')
+MQTT_SERVER_HOST = os.getenv('MQTT_SERVER_HOST', REMACHINON_HOST)
+MQTT_SERVER_PORT = int(os.getenv('MQTT_SERVER_PORT', 1883))
+MQTT_SERVER_PORT_SSL = int(os.getenv('MQTT_SERVER_PORT_SSL', 8883))
+MQTT_SERVER_USE_SSL = bool(os.getenv('MQTT_SERVER_USE_SSL', 'true').lower() in ("yes", "true", "t", "1"))
+MQTT_CERTS_PATH = os.getenv('MQTT_CERTS_PATH', '/etc/ssl/certs')
 
 # MQTT client and topic definitions
-MQTT_CLIENT_ID_PREFIX = os.getenv('MQTT_CLIENT_ID_PREFIX')
-MQTT_TOPIC_PREFIX_REMOTECONNECT = os.getenv('MQTT_TOPIC_PREFIX_REMOTECONNECT')
+MQTT_CLIENT_ID_PREFIX = os.getenv('MQTT_CLIENT_ID_PREFIX', 'agent_machinon:')
+MQTT_TOPIC_PREFIX = os.getenv('MQTT_TOPIC_PREFIX', 'remote')
 
-# Misc general definitions
-PROG_NAME = "Machinon Tunnel Agent"
-PROG_VERSION = "1.1.0"  # program version as string
-
-LOG_FILE = os.getenv('LOG_FILE')  # script user must have write access to this file or folder
+LOG_FILE = os.getenv('LOG_FILE', 'tunnel-agent.log')  # script user must have write access to this file or folder
 LOG_FILE_MAX_SIZE = 10 * 1024 * 1024
 
 # SSH and SSL definitions
-SSH_USERNAME = os.getenv('SSH_USERNAME') + '@' + os.getenv('SSH_HOSTNAME')
-SSH_KEY_FILE = os.getenv('SSH_KEY_FILE')
+if not os.getenv('SSH_USERNAME', None):
+    SSH_USERNAME = 'remachinon@re.machinon.com'
+else:
+    SSH_USERNAME = os.getenv('SSH_USERNAME') + '@' + REMACHINON_HOST
 
 # Remote ports the autossh will connect to on demand
 MIN_REMOTE_PORT = 10000
 MAX_REMOTE_PORT = 65535
 
 # Port for nginx listening the machinon_client app (default 81)
-DEFAULT_LOCAL_PORT = int(os.getenv('MACHINON_CLIENT_PORT'))
+DEFAULT_LOCAL_PORT = int(os.getenv('MACHINON_CLIENT_PORT', 81))
 
 # Program allows to run with a custom port between 81 and 65535
 MIN_LOCAL_PORT = 81
 MAX_LOCAL_PORT = 65535
 
-# Re:Machinon API URL
-REMACHINON_API_URL = os.getenv('REMACHINON_API_URL')
+
+# Requests the server's PEM key to the server and creates the file
+def request_pem_key(tunnel_token, tunnel_uuid):
+    logger.info("Retrieving new PEM key")
+    url = REMACHINON_API_URL + '/tunnels/' + str(tunnel_uuid) + '/getkey'
+    headers = {
+        'Authorization': 'Bearer ' + tunnel_token,
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    }
+    req = urllib.request.Request(url, None, headers, method='GET')
+    try:
+        response = urllib.request.urlopen(req)
+    except urllib.error.URLError as e:
+        logger.error("Retrieving PEM key failed, check credentials." + str(e))
+        return False
+    else:
+        logger.debug("PEM key retrieved")
+        response = response.read().decode('utf-8')
+    # If we reach here, we need to create a new file
+    with open(REMACHINON_PEM_KEY_PATH, 'x') as pem_file:
+        pem_file.write(response)
+    os.chmod(REMACHINON_PEM_KEY_PATH, 0o600)
+    return True
 
 
 # Validates uuid received in the JSON
@@ -116,14 +145,14 @@ def get_mac_address():
 
 
 def on_connect(client, userdata, flags, result):
-    # logger.info("MQTT Connection result: " + pahomqtt.connack_string(result))
+    # logger.debug("MQTT Connection result: " + pahomqtt.connack_string(result))
     if result == 0:
         # got connected OK
-        logger.info("MQTT Connected OK.")
+        logger.debug("MQTT Connected OK.")
         # subscribe here, so that we always renew subs after reconnecting
-        paho_client.subscribe(MQTT_TOPIC_PREFIX_REMOTECONNECT + "/" + mac_address)
+        paho_client.subscribe(MQTT_TOPIC_PREFIX + "/" + mac_address)
     else:
-        logger.warning("MQTT Connect failed: " + pahomqtt.connack_string(result))
+        logger.error("MQTT Connect failed: " + pahomqtt.connack_string(result) + " Check .env credentials.")
 
 
 def on_message(client, userdata, message):
@@ -134,25 +163,25 @@ def on_message(client, userdata, message):
     global tunnel_token
 
     message_string = message.payload.decode("utf-8")
-    logger.debug("MQTT_msg: Topic='" + message.topic + "'   Payload='" + message_string + "'")
+    # logger.debug("MQTT_msg: Topic='" + message.topic + "'   Payload='" + message_string + "'")
 
-    if message.topic != (MQTT_TOPIC_PREFIX_REMOTECONNECT + "/" + mac_address):
-        logger.debug("Invalid topic!")
+    if message.topic != (MQTT_TOPIC_PREFIX + "/" + mac_address):
+        logger.error("Invalid topic!")
         return
 
     try:
         message_dict = json.loads(message_string)
     except json.JSONDecodeError as exc:
-        logger.debug("MQTT JSON decode error: " + str(exc))
+        logger.error("MQTT JSON decode error: " + str(exc))
     else:
-        logger.debug("MQTT JSON decoded: " + str(message_dict))
         if "tunnel" in message_dict and message_dict["tunnel"] == "open":
+            logger.info("MQTT got tunnel open command")
             if "port" in message_dict:
                 remote_port_num = 0
                 try:
                     remote_port_num = int(message_dict["port"])
                 except:
-                    logger.info("MQTT JSON: Bad port value")
+                    logger.error("MQTT JSON: Bad port value")
                 else:
                     if remote_port_num >= MIN_REMOTE_PORT and remote_port_num <= MAX_REMOTE_PORT:
                         tunnel_uuid = ""
@@ -160,7 +189,7 @@ def on_message(client, userdata, message):
                             try:
                                 tunnel_uuid = str(message_dict["uuid"])
                             except:
-                                logger.info("MQTT JSON: Bad tunnel_uuid value")
+                                logger.error("MQTT JSON: Bad tunnel_uuid value")
                             else:
                                 if valid_uuid(tunnel_uuid):
                                     logger.info("MQTT got tunnel open command with port=" + str(
@@ -172,25 +201,25 @@ def on_message(client, userdata, message):
                                         try:
                                             tunnel_token = str(message_dict["access_token"])
                                         except:
-                                            logger.info("MQTT JSON: Bad access_token value")
+                                            logger.error("MQTT JSON: Bad access_token value")
                                         else:
-                                            logger.info("MQTT JSON: All okay!")
+                                            logger.debug("MQTT JSON: All okay!")
                                 else:
-                                    logger.info("MQTT JSON: Bad tunnel_uuid value")
+                                    logger.error("MQTT JSON: Bad tunnel_uuid value")
                         else:
-                            logger.info("MQTT JSON: tunnel_uuid not specified. Confirmation will be skipped.")
+                            logger.error("MQTT JSON: tunnel_uuid not specified. Confirmation will be skipped.")
                             # trigger r-ssh open
                             tunnel_do_open = False
                     else:
-                        logger.info("MQTT JSON: Bad port value")
+                        logger.error("MQTT JSON: Bad port value")
             else:
-                logger.debug("MQTT JSON: port number not specified!")
+                logger.error("MQTT JSON: port number not specified!")
         elif "tunnel" in message_dict and message_dict["tunnel"] == "close":
             # terminate r-ssh session
             logger.info("MQTT got tunnel close command")
             tunnel_do_close = True
         else:
-            logger.debug("MQTT JSON: tunnel command not found.")
+            logger.error("MQTT JSON: tunnel command not found.")
 
 
 def on_disconnect(client, userdata, result):
@@ -204,11 +233,12 @@ def on_disconnect(client, userdata, result):
 
 def on_subscribe(client, userdata, mid, granted_qos):
     logger.info(
-        "MQTT Subscribed to '" + MQTT_TOPIC_PREFIX_REMOTECONNECT + "/" + mac_address + "' QOS=" + str(granted_qos))
+        "MQTT Subscribed to '" + MQTT_TOPIC_PREFIX + "/" + mac_address + "' QOS=" + str(granted_qos))
+    logger.info("Agent Machinon is ready!")
 
 
 def cleanup():
-    logger.info("Machinon Tunnel Agent exit")
+    logger.info("Agent Machinon exit")
     # disconnect cleanly in case we're still connected
     paho_client.disconnect()
     time.sleep(0.5)  # kludge to allow time for disconnect to be sent and callback triggered
@@ -220,8 +250,7 @@ def cleanup():
         if not ssh_output:
             logger.info("Tunnel closed")
     except subprocess.CalledProcessError as e:
-        # logger.info("Tunnel close failed or no existing tunnel: " + str(e))
-        logger.info("Tunnel close failed or no existing tunnel")
+        logger.warning("Tunnel close failed or no existing tunnel")
 
 
 def main(argv):
@@ -236,10 +265,14 @@ def main(argv):
     global tunnel_token
     global local_port_num
 
-    # ssh_process = None
+      # ssh_process = None
     # ssh_output = ""
 
     atexit.register(cleanup)
+
+    if not REMACHINON_EMAIL or not REMACHINON_PASSWORD:
+        logger.error("Fatal Error : Unable to read user credentials, check the .env file. Exiting")
+        sys.exit(0)
 
     mac_address = get_mac_address()
     if not mac_address:
@@ -250,13 +283,12 @@ def main(argv):
     logger.info("Machinon MAC: " + mac_address)
     logger.info("Local server port: " + str(local_port_num))
     # sys.exit(0)
-
     paho_client = pahomqtt.Client(client_id, True, None, pahomqtt.MQTTv311, "tcp")
     paho_client.on_connect = on_connect
     paho_client.on_subscribe = on_subscribe
     paho_client.on_message = on_message
     paho_client.on_disconnect = on_disconnect
-    paho_client.username_pw_set(MQTT_SERVER_USERNAME, MQTT_SERVER_PASSWORD)
+    paho_client.username_pw_set(REMACHINON_EMAIL, REMACHINON_PASSWORD)
     # Misc PahoMQTT options/parameters
     # paho_client.max_inflight_messages_set(50)
     # TODO set up SSL if required
@@ -272,7 +304,7 @@ def main(argv):
         # See http://www.steves-internet-guide.com/loop-python-mqtt-client/
         paho_client.loop_start()
     except:
-        logger.info("MQTT Connect failed!")
+        logger.error("MQTT Connect failed!")
         sys.exit(1)
 
     while True:
@@ -283,46 +315,55 @@ def main(argv):
         if tunnel_do_open:
             # try to open the tunnel
             tunnel_do_open = False
-            logger.info("Attempting to open tunnel...")
 
-            # check for and kill any existing autossh process
-            try:
-                full_ssh_command = "pgrep -x autossh"
-                ssh_output = subprocess.check_output(full_ssh_command, shell=True)
-                if not ssh_output:
-                    logger.info("No existing tunnel")
+            if valid_uuid(tunnel_uuid) and tunnel_token:
+                logger.debug("Checking PEM key...")
+                # checks the existance of the server PEM key or requests it to the server if needed
+                if not os.path.isfile(REMACHINON_PEM_KEY_PATH):
+                    request_pem_key(tunnel_token, tunnel_uuid)
                 else:
-                    ssh_output = subprocess.check_output("sudo killall autossh", shell=True)
-                    if not ssh_output:
-                        logger.info("Existing tunnel closed")
-            except subprocess.CalledProcessError as e:
-                # logger.info("Tunnel close failed or no existing tunnel: " + str(e))
-                logger.info("Tunnel close failed or no existing tunnel")
+                    logger.debug("PEM key found!")
 
-            # try to open a new tunnel
-            try:
-                # TODO get local HTTP server port from system/service info instead of hard coding.
-                # autossh command line options:
-                #   "-f" = run autossh in background
-                #   "-i <key_file>" = use the specified private key (identity)
-                #   "-R <remote_port>:localhost:<local_port>" = open a tunnel between local_port and remote_port
-                #   "-N" = do not execute any remote command (only use the connection for forwarding)
-                full_ssh_command = "sudo autossh -f -N -i %s -R %d:localhost:%d %s" % (
-                    SSH_KEY_FILE, remote_port_num, local_port_num, SSH_USERNAME)
-                ssh_output = subprocess.check_output(full_ssh_command, shell=True)
-                if not ssh_output:
-                    logger.info("Tunnel opened")
-            except subprocess.CalledProcessError as e:
-                logger.info("Tunnel open failed: " + str(e))
-            else:
-                # tunnel opened, so call LE API to confirm that we are online
-                if valid_uuid(tunnel_uuid) and tunnel_token:
+                logger.info("Attempting to open tunnel...")
+
+                # check for and kill any existing autossh process
+                try:
+                    full_ssh_command = "pgrep -x autossh"
+                    ssh_output = subprocess.check_output(full_ssh_command, shell=True)
+                    if not ssh_output:
+                        logger.info("No existing tunnel")
+                    else:
+                        ssh_output = subprocess.check_output("sudo killall autossh", shell=True)
+                        if not ssh_output:
+                            logger.info("Existing tunnel closed")
+                except subprocess.CalledProcessError as e:
+                    # logger.info("Tunnel close failed or no existing tunnel: " + str(e))
+                    logger.error("Tunnel close failed or no existing tunnel")
+
+
+                # try to open a new tunnel
+                try:
+                    # TODO get local HTTP server port from system/service info instead of hard coding.
+                    # autossh command line options:
+                    #   "-f" = run autossh in background
+                    #   "-i <key_file>" = use the specified private key (identity)
+                    #   "-R <remote_port>:localhost:<local_port>" = open a tunnel between local_port and remote_port
+                    #   "-N" = do not execute any remote command (only use the connection for forwarding)
+                    full_ssh_command = "sudo autossh -f -N -i %s -R %d:localhost:%d %s" % (
+                        REMACHINON_PEM_KEY_PATH, remote_port_num, local_port_num, SSH_USERNAME)
+                    ssh_output = subprocess.check_output(full_ssh_command, shell=True)
+                    if not ssh_output:
+                        logger.info("Tunnel opened")
+                except subprocess.CalledProcessError as e:
+                    logger.error("Tunnel open failed! " + str(e))
+                else:
+                    # tunnel opened, so call LE API to confirm that we are online
                     headers = {
                         'Authorization': 'Bearer ' + tunnel_token,
                         'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
                     }
-                    # This line calls the new Remachinon App (Laravel) confirmation endpoint
+                    # This line calls the new Remachinon App confirmation endpoint
                     confirm_url = REMACHINON_API_URL + '/tunnels/' + str(tunnel_uuid) + '/confirm'
                     logger.debug('Calling : ' + confirm_url)
                     req = urllib.request.Request(confirm_url, None, headers, method='PUT')
@@ -330,11 +371,11 @@ def main(argv):
                         response = urllib.request.urlopen(req)
                         # response_page = response.read()
                     except urllib.error.URLError as e:
-                        logger.info("Confirmation API GET failed: " + str(e))
+                        logger.error("Confirmation API GET failed: " + str(e))
                     else:
                         logger.info("Confirmation API call OK")
-                else:
-                    logger.info("Confirmation API call skipped")
+            else:
+                logger.error("Tunnel open failed!")
 
         if tunnel_do_close:
             # try to close the tunnel
@@ -347,7 +388,7 @@ def main(argv):
                 if not ssh_output:
                     logger.info("Tunnel closed")
             except subprocess.CalledProcessError as e:
-                logger.info("Tunnel close failed or no existing tunnel")
+                logger.error("Tunnel close failed or no existing tunnel")
                 # logger.info("Tunnel close failed or no existing tunnel: " + str(e))
 
 
