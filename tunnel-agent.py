@@ -434,6 +434,8 @@ parser.add_argument('-p', '--port', help='Local port to forward to, e.g. "-p 80"
                     required=False, type=int)
 parser.add_argument('-v', '--version', help='Print version info', action='version',
                     version=PROG_NAME + " version " + PROG_VERSION)
+parser.add_argument('-m', '--muid', help='Print your device MUID to register at Re:Machinon', action='version',
+                    version="MUID : " + str(get_mac_address()))
 args = parser.parse_args()
 if args.port:
     if MIN_LOCAL_PORT <= args.port <= MAX_LOCAL_PORT:
